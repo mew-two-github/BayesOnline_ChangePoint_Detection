@@ -3,22 +3,13 @@ load historic.mat
 %load new.mat;
 N = length(y);
 %% Estimate and plot ACFs and PACFs
-% Estimate ACF
-[acf_y,lags,bounds] = autocorr(y,'NumLags',20);
 % Plot sample ACF
 figure();
 subplot(1,2,1);
-autocorr(y,'NumLags',20);
-set(gca,'fontsize',12,'fontweight','bold');
-hca = gca;
-set(hca.Children(4),'LineWidth',2)
-box off;
-% Estimate sample PACF
-pacf_y = parcorr(y,'NumLags',20);
+autocorr(y,'NumLags',15);box off;
 %plot sample PACF
 subplot(1,2,2);
-parcorr(y,'NumLags',20);
-box off;
+parcorr(y,'NumLags',15);box off;
 % ACF exponentially dies, PACF goes to zero after step 1. This means that
 % the model is AR(1)
 %% Building the AR model
@@ -29,12 +20,12 @@ model = fitlm(psi,y(2:N),'y~x1-1');
 res = model.Residuals.raw;
 % ACF of residuals
 figure();
-subplot(1,2,1); autocorr(res,'NumLags',25);
+subplot(1,2,1); autocorr(res,'NumLags',15);
 title('ACF of residuals from AR(1) model')
 box off;
 % PACF of residuals
-subplot(1,2,2)
-parcorr(res,'NumLags',25)
+subplot(1,2,2);
+parcorr(res,'NumLags',15)
 title('PACF of residuals from AR(1) model')
 box off;
 % Whiteness test
@@ -42,7 +33,7 @@ box off;
 disp('Whiteness Test for Residuals results');
 disp(h_model);disp(pval_model);
 if h_model == 0
-
+    fprintf("The residuals are white and hence the AR model is not an underfit")
 end
 % The residuals are white
 %% Load the new data
@@ -64,7 +55,7 @@ mu0 = 0;k0=1;lambda=50;
 P_joint = zeros(N+1); P_runlength = P_joint;
 P_joint(1) = 1; H = 1/lambda;
 alpha = zeros(N+1-200);beta = zeros(N+1-200);
-alpha(:,1) = 20; beta(:,1) = 2;
+alpha(:,1) = 10; beta(:,1) = 1;
 mu = zeros(N+1-200); mu(1) = mu0;
 k = zeros(N+1-200); k(1) = k0;
 res = zeros(N+1-200,1);
@@ -104,7 +95,7 @@ for t = 1:N-200
     k(2:t+1) = k(1:t) + 1;
     %P_runlength(t,:) = P_runlength(t,:)/sum(P_runlength(t,:));
     [~, ind] = max(P_runlength(t,:));
-    % Uncomment the following lines if you want to detect just the first
+    % Uncomment the following 3 lines if you want to detect just the first
     % changepoint automatically.
 %     if ind < t-5 % at cp, the run length will be reset
 %         break
@@ -116,18 +107,38 @@ plot_rt_probs(P_runlength(1:t,1:t));
 % that indices [86,87,88] belong to the new DGP
 % Also, note that plot is made after 200, so the change point is estimated
 % to be at 200+86 = 286
-cp  = 285;
+cp  = 286;
 %% Part b)
 % From RLS and cp, we have
 theta_initial = theta(285);
-variance_initial = var(y(2:cp)-theta_initial*y(1:cp-1));
+% Whiteness test
+[h_model,pval_model] = lbqtest(y(2:cp-1)-theta_initial*y(1:cp-2));
+fprintf('\nWhiteness Test for Residuals results');
+disp(h_model);disp(pval_model);
+if h_model == 0
+    fprintf("The residuals are white and hence the RLS model is not an underfit\n")
+end
+variance_initial = var(y(2:cp-1)-theta_initial*y(1:cp-2));
 % Post cp
-data = y(286:N);
+data = y(cp:N);
 l =  length(data);
-parcorr(data,'NumLags',20);
+figure();parcorr(data,'NumLags',20);
 % Again AR(1) model is sufficient to explain. This is as expected because
 % only the white noise term's variance changes.
 model2 = fitlm(data(1:l-1),data(2:l),'y~x1-1');
 res2 = model2.Residuals.Raw;
+% Whiteness test
+[h_model,pval_model] = lbqtest(res2);
+fprintf('\nWhiteness Test for Residuals results');
+disp(h_model);disp(pval_model);
+if h_model == 0
+    fprintf("The residuals are white and hence the AR model is not an underfit\n")
+end
+figure();parcorr(res,'NumLags',15);
+title('PACF of residuals from AR(1) model');
+% The residuals are white
 theta_new = model2.Coefficients.Estimate;
-variance_later= var(res2);
+variance_new= var(res2);
+%% Results details
+% Part a) Final results in model (the ar model using history), and cp (the changepoint)
+% Part b) Final results in theta_initial, variance_initial, theta_new, variance_new
