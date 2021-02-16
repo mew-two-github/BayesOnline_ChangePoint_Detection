@@ -1,0 +1,6 @@
+%% Part b)
+% From RLS and cp, we have
+theta_initial = theta(285);
+variance_initial = var(y(2:cp)-theta_initial*y(1:cp-1));
+% Post cp
+pa
